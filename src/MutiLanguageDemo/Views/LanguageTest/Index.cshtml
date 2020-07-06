@@ -1,0 +1,189 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+    Layout = null;
+}
+
+<div style="float:left">
+    <div class="dropdown">
+        <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+            <div style="display:inline" data-msgid="propertyManageName" class="NeedTranslate"></div>
+            <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
+            <li><a href="#" data-msgid="propertyManageArr1" class="NeedTranslate"></a></li>
+            <li><a href="#" data-msgid="propertyManageArr2" class="NeedTranslate"></a></li>
+        </ul>
+    </div>
+</div>
+<div style="float:left;margin-left:20px">
+    <div class="dropdown">
+        <button class="btn btn-default dropdown-toggle" type="button"  id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+            <div style="display:inline"> 国家 </div>
+            <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="dropdownMenu1" id="language_select">
+            @*<li><a href="#" data-msgid="propertyManageArr1" class="NeedTranslate"></a></li>
+                <li><a href="#" data-msgid="propertyManageArr2" class="NeedTranslate"></a></li>*@
+        </ul>
+    </div>
+</div>
+<link href="~/lib/bootstrap/dist/css/bootstrap.css" rel="stylesheet" />
+<style>
+</style>
+<script src="~/lib/jquery/dist/jquery.js"></script>
+<script src="~/js/jquery.cookie.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.js"></script>
+<script>
+    var AllTranslate;
+    var Translate;
+    $(function () {
+        // 读取cookie获取当前语言，如果此时cookie里的值是空，则在后续的请求中初始化并赋值
+        ReadCookie();
+        //LoadTranslate();
+        LoadTranslateCountries();
+    })
+
+    function ReadCookie() {
+
+        ReadDefaultLanguage();
+        LoadTranslate();
+
+    }
+
+    function ReadDefaultLanguage() {
+        var url = "/LanguageTest/GetAllListTranslateWithCurrentLanguageResult";
+        var locationHref = window.location.pathname;
+        var tempStr = locationHref.split('/');
+
+        var beforeHref = "";
+        if (tempStr.length > 1) { 
+            for (var i = 0; i < tempStr.length - 2; i++) {
+                if (tempStr[i].length != 0) {
+                    beforeHref += "/" + tempStr[i];
+                }
+            }
+
+            url = beforeHref + url;
+        }
+
+        if (beforeHref.length > 0) { 
+
+            $.cookie('LanguageDetail', null);
+        }
+
+        $.ajax({
+            type: "GET",
+            url: url,
+            async: false,
+            //data: { "pagenum": pagecount, "pagesize": pagesize, "name": order_msg, "orderstatus": status, "customname": custom, "recevpersonname": recevpersonname, "username": username, "mobile": mobile, "starttime": starttime, "endtime": endtime },
+            success: function (response) {
+
+                AllTranslate = response;
+                if ($.cookie('LanguageDetail') == null || TranslateJsonToObj($.cookie('LanguageDetail')) == null) {
+                    for (var i = 0; i < AllTranslate.length; i++) {
+                        if (AllTranslate[i].isSystemDefault) {
+                            Translate = AllTranslate[i];
+                            var json = TranslateToJson();
+                            $.cookie('LanguageDetail', json)
+                        }
+                    }
+
+                }
+                else {
+                    Translate = TranslateJsonToObj($.cookie('LanguageDetail'));
+                    console.log(Translate);
+                }
+            }
+        })
+
+    }
+    // 加载语言翻译
+    function LoadTranslate() {
+        if (Translate != null) {
+            var objList = $(".NeedTranslate");
+            for (var i = 0; i < objList.length; i++) {
+                var item = objList.eq(i);
+                var msgId = item.attr("data-msgid");
+                var msgResult = FindTranslate(msgId);
+                item.text(msgResult);
+            }
+        }
+
+    }
+    // 加载语言翻译寻找索引
+    function FindTranslate(msgid) {
+        console.log(Translate);
+        for (var i = 0; i < Translate.translateList.length; i++) {
+            if (Translate.translateList[i].source == msgid) {
+                return Translate.translateList[i].result;
+
+            }
+
+        }
+
+    }
+
+    // 加载国家区域
+    function LoadTranslateCountries() {
+        console.log(AllTranslate);
+
+       
+        var HtmlText = "";
+
+        for (var i = 0; i < AllTranslate.length; i++)
+        {
+            HtmlText += '<li onclick="OnCountryClick(this)" data-country="' + AllTranslate[i].cultureCodeCountry.cultureCode +'"><a href="#" data-country="' + AllTranslate[i].cultureCodeCountry.cultureCode+'">' + AllTranslate[i].cultureCodeCountry.country+'</a></li>';
+
+        }
+        $("#language_select").empty();
+        $("#language_select").append(HtmlText);
+
+    }
+
+
+    function OnCountryClick(Country) {
+        console.log($(Country).attr("data-country"));
+        for (var i = 0; i < AllTranslate.length; i++)
+        { 
+            if (AllTranslate[i].cultureCodeCountry.cultureCode == $(Country).attr("data-country")) {
+                Translate = AllTranslate[i];
+                break;
+            }
+           
+        }
+
+        //------------------改变cookies-------------------
+        var json = TranslateToJson();
+        $.cookie('LanguageDetail', json)
+
+        LoadTranslate();
+    }
+
+    function LoadCountryLanguage() {
+        $.ajax({
+            type: "GET",
+            url: "/LanguageTest/GetAllListTranslateResult",
+            async: false,
+            data: { "IsUseAlias": false },
+            success: function (response) {
+
+                Translate = response;
+                console.log(Translate);
+            }
+        })
+
+    }
+
+    function TranslateToJson() {
+        return JSON.stringify(Translate);
+
+    }
+
+    function TranslateJsonToObj(jsonStr) { 
+
+        return jQuery.parseJSON(jsonStr);
+    }
+
+</script>
+
